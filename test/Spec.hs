@@ -1,16 +1,22 @@
-{-# language TemplateHaskell, TypeApplications #-}
+{-# language TemplateHaskell, PolyKinds, ScopedTypeVariables, TypeApplications #-}
+
+{-# OPTIONS_GHC -ddump-splices #-}
 
 import DiscoverInstances
+import Data.Proxy
+import Data.Typeable
+import Data.Foldable
 
-show :: [InstanceDict Show]
+show :: [SomeDict Show]
 show = $$(discoverInstances @Show)
 
-eq :: [InstanceDict Eq]
+eq :: [SomeDict Eq]
 eq = $$(discoverInstances)
 
-functor :: [InstanceDict Functor]
+functor :: [SomeDict Functor]
 functor = $$(discoverInstances)
 
 main :: IO ()
 main = do
-    putStrLn "okay"
+    for_ functor $ \(SomeDictOf p@(Proxy :: Proxy t)) -> do
+        print 1234
