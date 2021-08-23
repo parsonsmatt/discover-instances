@@ -90,7 +90,7 @@ discoverInstances = do
 
     dicts <- fmap listTE $ traverse decToDict instanceDecs
 
-    [|| concat $$(pure dicts) ||]
+    fromCode $ toCode [|| concat $$(pure dicts) ||]
 
 -- $using
 --
@@ -224,9 +224,11 @@ decToDict = \case
             [] -> do
                 let
                     t =
-                       case typ of
-                           AppT _ t' ->
+                        case typ of
+                            AppT _ t' ->
                                stripSig t'
+                            _ ->
+                                t
                     stripSig (SigT a _) =
                         a
                     stripSig x =
