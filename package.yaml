@@ -23,7 +23,6 @@ dependencies:
 - base >= 4.7 && < 5
 - template-haskell
 - some-dict-of
-- th-compat
 
 library:
   source-dirs: src
