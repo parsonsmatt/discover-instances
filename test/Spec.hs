@@ -1,11 +1,14 @@
-{-# language TemplateHaskell, PolyKinds, ScopedTypeVariables, TypeApplications #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -ddump-splices #-}
 
-import DiscoverInstances
+import Data.Foldable
 import Data.Proxy
 import Data.Typeable
-import Data.Foldable
+import DiscoverInstances
 
 show :: [SomeDict Show]
 show = $$(discoverInstances @Show)
@@ -14,7 +17,7 @@ eq :: [SomeDict Eq]
 eq = $$(discoverInstances)
 
 functor :: [SomeDict Functor]
-functor = $$(discoverInstances)
+functor = $$discoverInstances
 
 main :: IO ()
 main = do
