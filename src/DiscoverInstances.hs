@@ -1,15 +1,14 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE CPP #-}
 
 -- | Generally speaking, this module is only useful to discover instances
 -- of unary type classes where the instance is unconstrained.
@@ -39,16 +38,23 @@ module DiscoverInstances
     , module Data.Proxy
     ) where
 
-import Data.Constraint
-import Data.Kind hiding (Type)
-import qualified Data.Kind as Kind
 import Data.Proxy
 import Data.Typeable
-import GHC.Exts
-import Language.Haskell.TH
+import Language.Haskell.TH hiding (cxt)
 import Language.Haskell.TH.Syntax
-import LiftType
 import SomeDictOf
+
+-- | I'm trying to support typed Template Haskell quotes, but the interface was
+-- changed from @'Q' ('TExp' a)@ to @'Code' 'Q' a@ in GHC 9.0. This type is
+-- a compatibility hack.
+--
+-- @since 0.1.0.0
+type Return a =
+#if MIN_VERSION_template_haskell(2,17,0)
+    Code Q a
+#else
+    Q (TExp a)
+#endif
 
 -- | This TemplateHaskell function accepts a type and splices in a list of
 -- 'SomeDict's that provide evidence that the type is an instance of
@@ -85,8 +91,8 @@ import SomeDictOf
 -- But you'll get an error if you type-apply like that.
 --
 -- @since 0.1.0.0
-discoverInstances :: forall (c :: _ -> Constraint) . (Typeable c) => Q (TExp [SomeDict c])
-discoverInstances = do
+discoverInstances :: forall (c :: _ -> Constraint) . (Typeable c) => Return [SomeDict c]
+discoverInstances = qToReturn $ do
     let
         className =
             show (typeRep (Proxy @c))
@@ -94,7 +100,47 @@ discoverInstances = do
 
     dicts <- fmap listTE $ traverse decToDict instanceDecs
 
-    [|| concat $$(pure dicts) ||]
+    compat [|| concat $$(compatPure dicts) ||]
+
+qToReturn
+    :: Q (TExp a) -> Return a
+qToReturn a =
+#if MIN_VERSION_template_haskell(2,17,0)
+    Code a
+#else
+    a
+#endif
+
+
+-- | wildly annoying compatibility hack
+compat
+    ::
+#if MIN_VERSION_template_haskell(2,17,0)
+    Code Q a
+#else
+    Q (TExp a)
+#endif
+    -> Q (TExp a)
+compat a =
+#if MIN_VERSION_template_haskell(2,17,0)
+    examineCode a
+#else
+    a
+#endif
+
+compatPure
+    :: TExp a ->
+#if MIN_VERSION_template_haskell(2,17,0)
+    Code Q a
+#else
+    Q (TExp a)
+#endif
+compatPure a =
+#if MIN_VERSION_template_haskell(2,17,0)
+    Code $ pure a
+#else
+    pure a
+#endif
 
 -- $using
 --
@@ -228,10 +274,12 @@ decToDict = \case
             [] -> do
                 let
                     t =
-                       case typ of
-                           AppT _ t ->
-                               stripSig t
-                    stripSig (SigT a b) =
+                        case typ of
+                            AppT _ t' ->
+                               stripSig t'
+                            _ ->
+                                t
+                    stripSig (SigT a _) =
                         a
                     stripSig x =
                         x
@@ -244,4 +292,9 @@ decToDict = \case
                 --     <> show typ
                 --     <> ", context: "
                 --     <> show cxt
-                [|| [] ||]
+                compat [|| [] ||]
+
+    _ -> do
+        reportWarning $
+            "discoverInstances called on 'reifyInstances' somehow returned something that wasn't a type class instance."
+        compat [|| [] ||]

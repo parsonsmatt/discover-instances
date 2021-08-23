@@ -20,14 +20,13 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/parsonsmatt/discover-instances#readme>
 
 dependencies:
-- base >= 4.7 && < 5
+- base >= 4.12 && < 5
 - template-haskell
-- lift-type
-- constraints
 - some-dict-of
 
 library:
   source-dirs: src
+  ghc-options: -Wall
 
 tests:
   discover-instances-test:
