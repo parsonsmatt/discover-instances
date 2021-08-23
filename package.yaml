@@ -22,12 +22,12 @@ description:         Please see the README on GitHub at <https://github.com/pars
 dependencies:
 - base >= 4.7 && < 5
 - template-haskell
-- lift-type
-- constraints
 - some-dict-of
+- th-compat
 
 library:
   source-dirs: src
+  ghc-options: -Wall
 
 tests:
   discover-instances-test:

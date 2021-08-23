@@ -39,15 +39,11 @@ module DiscoverInstances
     , module Data.Proxy
     ) where
 
-import Data.Constraint
-import Data.Kind hiding (Type)
-import qualified Data.Kind as Kind
 import Data.Proxy
 import Data.Typeable
-import GHC.Exts
-import Language.Haskell.TH
-import Language.Haskell.TH.Syntax
-import LiftType
+import Language.Haskell.TH hiding (cxt)
+import Language.Haskell.TH.Syntax (TExp(..), unsafeTExpCoerce)
+import Language.Haskell.TH.Syntax.Compat
 import SomeDictOf
 
 -- | This TemplateHaskell function accepts a type and splices in a list of
@@ -229,9 +225,9 @@ decToDict = \case
                 let
                     t =
                        case typ of
-                           AppT _ t ->
-                               stripSig t
-                    stripSig (SigT a b) =
+                           AppT _ t' ->
+                               stripSig t'
+                    stripSig (SigT a _) =
                         a
                     stripSig x =
                         x
@@ -245,3 +241,7 @@ decToDict = \case
                 --     <> ", context: "
                 --     <> show cxt
                 [|| [] ||]
+    _ -> do
+        reportWarning $
+            "discoverInstances called on 'reifyInstances' somehow returned something that wasn't a type class instance."
+        [|| [] ||]
