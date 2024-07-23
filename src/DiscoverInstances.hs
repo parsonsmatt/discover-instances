@@ -43,6 +43,7 @@ import Language.Haskell.TH hiding (cxt)
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Syntax.Compat
 import SomeDictOf
+import LiftType
 
 -- | This TemplateHaskell function accepts a type and splices in a list of
 -- 'SomeDict's that provide evidence that the type is an instance of
@@ -79,12 +80,16 @@ import SomeDictOf
 -- But you'll get an error if you type-apply like that.
 --
 -- @since 0.1.0.0
-discoverInstances :: forall (c :: _ -> Constraint) . (Typeable c) => SpliceQ [SomeDict c]
+discoverInstances :: forall {k0} (c :: k0 -> Constraint) k . (Typeable c, Typeable k, k0 ~ k, Typeable k0) => SpliceQ [SomeDict c]
 discoverInstances = liftSplice $ do
-    let
-        className =
-            show (typeRep (Proxy @c))
-    instanceDecs <- reifyInstances (mkName className) [VarT (mkName "a")]
+    className <-
+        case typeToName @c of
+            TypeName className ->
+                pure className
+            PromotedDataName bad -> do
+                fail $ "Cannot discover instances for a promoted data constructor: " <> show bad
+
+    instanceDecs <- reifyInstances className [VarT (mkName "a")]
 
     dicts <- fmap listTE $ traverse decToDict instanceDecs
 

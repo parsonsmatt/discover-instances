@@ -7,14 +7,21 @@ packages:
 - completed:
     hackage: some-dict-of-0.1.0.0@sha256:86b430a1cc30b2edbc15381c1c524a58228e87987293db1c4ab340516d20420c,1334
     pantry-tree:
-      size: 366
       sha256: 8a1b8b942434a31b6496d5d5b28c24457bdba8c892097b179acfecdee6f75b76
+      size: 366
   original:
     hackage: some-dict-of-0.1.0.0
+- completed:
+    hackage: lift-type-0.1.2.0@sha256:54bb2aaf5bf5472d5dd5ec06f6e53d9babce898d1a718d6f34c349b77760bd14,1122
+    pantry-tree:
+      sha256: 87522399268daa1c441823d1a02c0eba52670d2aafd5c6cd41427ca76f81b5d9
+      size: 362
+  original:
+    hackage: lift-type-0.1.2.0
 snapshots:
 - completed:
-    size: 585817
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/5.yaml
-    sha256: 22d24d0dacad9c1450b9a174c28d203f9bb482a2a8da9710a2f2a9f4afee2887
+    sha256: 90e6fcdcf6706918ef022ab01214828c550ee637a2d50f4fe96b15742b8bced1
+    size: 714102
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/22/5.yaml
   original:
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/5.yaml
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/22/5.yaml

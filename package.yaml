@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/pars
 
 dependencies:
 - base >= 4.12 && < 5
+- lift-type >= 0.1.2.0
 - template-haskell
 - some-dict-of
 - th-compat

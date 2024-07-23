@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -33,6 +33,7 @@ library
   ghc-options: -Wall
   build-depends:
       base >=4.12 && <5
+    , lift-type >=0.1.2.0
     , some-dict-of
     , template-haskell
     , th-compat
@@ -42,6 +43,7 @@ test-suite discover-instances-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Spec.PolyClass
       Paths_discover_instances
   hs-source-dirs:
       test
@@ -49,6 +51,7 @@ test-suite discover-instances-test
   build-depends:
       base >=4.12 && <5
     , discover-instances
+    , lift-type >=0.1.2.0
     , some-dict-of
     , template-haskell
     , th-compat
