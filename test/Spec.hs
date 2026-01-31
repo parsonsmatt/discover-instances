@@ -16,6 +16,9 @@ show = $$(discoverInstances @Show)
 eq :: [SomeDict Eq]
 eq = $$(discoverInstances)
 
+eqShow :: [(SomeDict Eq, SomeDict Show)]
+eqShow = $$(discoverBothInstances)
+
 functor :: [SomeDict Functor]
 functor = $$discoverInstances
 

@@ -28,15 +28,23 @@ module DiscoverInstances
     (
     -- * The main interface
       discoverInstances
+    , discoverBothInstances
     -- * Using the results of 'discoverInstances'
     -- $using
     , withInstances
     , forInstances
+    , withBothInstances
+    , forBothInstances
     , module SomeDictOf
     -- * Re-exports
     , module Data.Proxy
     ) where
 
+import Data.Maybe (catMaybes)
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+import qualified Data.Map.Merge.Strict as Merge
+import Data.Traversable (for)
 import Data.Proxy
 import Data.Typeable
 import Language.Haskell.TH hiding (cxt)
@@ -81,14 +89,10 @@ import SomeDictOf
 -- @since 0.1.0.0
 discoverInstances :: forall (c :: _ -> Constraint) . (Typeable c) => SpliceQ [SomeDict c]
 discoverInstances = liftSplice $ do
-    let
-        className =
-            show (typeRep (Proxy @c))
+    let className = show (typeRep (Proxy @c))
     instanceDecs <- reifyInstances (mkName className) [VarT (mkName "a")]
-
     dicts <- fmap listTE $ traverse decToDict instanceDecs
-
-    examineSplice [|| concat $$(liftSplice $ pure dicts) ||]
+    examineSplice [|| catMaybes $$(expToSplice dicts) ||]
 
 -- $using
 --
@@ -212,10 +216,101 @@ forInstances
 forInstances dicts f =
     traverse (\(SomeDictOf p) -> f p) dicts
 
+-- | This TemplateHaskell function accepts two types and splices in a list of
+-- 'SomeDict's that provide evidence that the type is an instance of **both**
+-- of the classes that you asked for.
+--
+-- That is to say: it takes the cartesian product of types in each set of
+-- instances and returns a list of 'SomeDict' pairs containing evidence of
+-- for that type's implementations of each of the two instances.
+--
+-- There are some limitations.
+--
+-- * The class can only accept a single parameter.
+-- * The instances returned do not have a context.
+--
+-- Example Use:
+--
+-- @
+-- eqShow :: [('SomeDict' 'Eq', 'SomeDict' 'Show')]
+-- eqShow = $$(discoverBothInstances)
+-- @
+--
+-- This function uses typed @TemplateHaskell@, which means you don't need to
+-- provide a type annotation directly. However, you can pass a type directly.
+--
+-- @
+-- ordShow :: ['SomeDict' 'Ord' 'Show']
+-- ordShow = $$(discoverBothInstances @Ord @Show)
+-- @
+--
+-- @since 0.1.1.0
+discoverBothInstances
+  :: forall (l :: _ -> Constraint) (r :: _ -> Constraint)
+   . (Typeable l, Typeable r)
+  => SpliceQ [(SomeDict l, SomeDict r)]
+discoverBothInstances = liftSplice $ do
+    instanceDecsL <- reifyInstanceDecMap @l
+    instanceDecsR <- reifyInstanceDecMap @r
+
+    let instanceDecs = Map.elems $ intersect instanceDecsL instanceDecsR
+    dicts <- for instanceDecs $ \(decL, decR) -> do
+      dictL <- decToDict decL
+      dictR <- decToDict decR
+      examineSplice [|| (,) <$> $$(expToSplice dictL) <*> $$(expToSplice dictR) ||]
+
+    examineSplice [|| catMaybes $$(expToSplice $ listTE dicts) ||]
+  where
+    reifyInstanceDecMap :: forall c. Typeable c => Q (Map Type InstanceDec)
+    reifyInstanceDecMap = do
+        let className = show (typeRep (Proxy @c))
+        instanceDecs <- reifyInstances (mkName className) [VarT (mkName "a")]
+        pure . Map.fromList $ map indexByType instanceDecs
+
+    indexByType :: InstanceDec -> (Type, InstanceDec)
+    indexByType i@(InstanceD _ _ typ _) = (typ, i)
+
+    intersect =
+        Merge.merge
+            Merge.dropMissing
+            Merge.dropMissing
+            (Merge.zipWithMatched (\_ l r -> (l, r)))
+
+-- | An alias for the pattern:
+--
+-- @
+-- flip map $$discoverBothInstances $ \\('SomeDictOf' l, 'SomeDictOf' r) -> f l r
+-- @
+--
+-- @since 0.1.1.0
+withBothInstances
+    :: Functor f
+    => f (SomeDict l, SomeDict r)
+    -> (forall a b. (l a, r b) => Proxy a -> Proxy b -> c)
+    -> f c
+withBothInstances dicts f =
+    fmap (\(SomeDictOf l, SomeDictOf r) -> f l r) dicts
+
+-- | An alias for the pattern:
+--
+-- @
+-- for $$discoverInstances $ \\('SomeDictOf' p) -> do
+--     f p
+-- @
+--
+-- @since 0.1.0.0
+forBothInstances
+    :: (Traversable t, Applicative f)
+    => t (SomeDict l, SomeDict r)
+    -> (forall a b. (l a, r b) => Proxy a -> Proxy b -> f c)
+    -> f (t c)
+forBothInstances dicts f =
+    traverse (\(SomeDictOf l, SomeDictOf r) -> f l r) dicts
+
 listTE :: [TExp a] -> TExp [a]
 listTE = TExp . ListE . map unType
 
-decToDict :: forall k (c :: k -> Constraint). InstanceDec -> Q (TExp [SomeDict c])
+decToDict :: forall k (c :: k -> Constraint). InstanceDec -> Q (TExp (Maybe (SomeDict c)))
 decToDict = \case
     InstanceD _moverlap cxt typ _decs ->
         case cxt of
@@ -233,16 +328,16 @@ decToDict = \case
                         x
                     proxy =
                         [| Proxy :: Proxy $(pure t) |]
-                unsafeTExpCoerce [| [ SomeDictOf $proxy ] |]
+                unsafeTExpCoerce [| Just (SomeDictOf $proxy) |]
             _ -> do
                 -- reportWarning $
                 --     "I haven't figured out how to put constrained instances on here, so I'm skipping the type: "
                 --     <> show typ
                 --     <> ", context: "
                 --     <> show cxt
-                examineSplice [|| [] ||]
+                examineSplice [|| Nothing ||]
 
     _ -> do
         reportWarning $
             "discoverInstances called on 'reifyInstances' somehow returned something that wasn't a type class instance."
-        examineSplice [|| [] ||]
+        examineSplice [|| Nothing ||]

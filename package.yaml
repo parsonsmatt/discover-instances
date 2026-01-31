@@ -1,5 +1,5 @@
 name:                discover-instances
-version:             0.1.0.0
+version:             0.1.1.0
 github:              "parsonsmatt/discover-instances"
 license:             BSD3
 author:              "Matt Parsons"
@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/pars
 
 dependencies:
 - base >= 4.12 && < 5
+- containers
 - template-haskell
 - some-dict-of
 - th-compat
